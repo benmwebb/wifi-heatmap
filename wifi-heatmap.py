@@ -150,8 +150,13 @@ class App(QMainWindow):
             print('file saved as ' + file_name)
 
     def load_survey(self):
-        with open('out.csv') as csvfile:
-            self.plan._signals.read_csv(csvfile, self.plan.add_point_signals)
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Select CSV file",
+                       "","All Files (*);;CSV Files (*.csv)", options=options)
+        if file_name:
+            with open(file_name) as csvfile:
+                self.plan._signals.read_csv(csvfile,
+                                            self.plan.add_point_signals)
 
     def setup_menu(self):
         mainMenu = self.menuBar()
