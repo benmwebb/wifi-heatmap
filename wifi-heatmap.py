@@ -63,7 +63,6 @@ class FloorPlan(QLabel):
             pos = event.pos()
             for signal in self.q.get_signals():
                 self._signals.add_signal((pos.x(), pos.y()), signal)
-            print("mouse pressed at", pos)
             label = QLabel('X', self)
             label.setToolTip(self._signals.get_text((pos.x(), pos.y())))
             label.move(pos)
@@ -93,14 +92,14 @@ class App(QMainWindow):
         self.setMaximumSize(QtCore.QSize(max(self.plan.width(), 400),
                                          max(self.plan.height(), 400)))
 
-    def openFileDialog(self):
+    def open_floor_plan_dialog(self):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileName(self, "Select image file",
                        "","All Files (*);;Image Files (*.jpg)", options=options)
         if fileName:
             self.load_image(fileName)
 
-    def save_points(self):
+    def save_survey(self):
         def get_rssi(sd, b):
             if b in sd:
                 return sd[b].rssi
@@ -116,13 +115,13 @@ class App(QMainWindow):
     def setup_menu(self):
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
-        openButton = QAction('Open File...', self)
-        openButton.triggered.connect(self.openFileDialog)
-        fileMenu.addAction(openButton)
+        b = QAction('Open Floor Plan...', self)
+        b.triggered.connect(self.open_floor_plan_dialog)
+        fileMenu.addAction(b)
 
-        saveButton = QAction('Save points...', self)
-        saveButton.triggered.connect(self.save_points)
-        fileMenu.addAction(saveButton)
+        b = QAction('Save Survey...', self)
+        b.triggered.connect(self.save_survey)
+        fileMenu.addAction(b)
  
 if __name__ == '__main__':
     app = QApplication(sys.argv)
