@@ -14,15 +14,33 @@ import operator
 # Information on a single wireless AP
 Signal = collections.namedtuple('Signal', ['ssid', 'bssid', 'rssi'])
 
+class PointSignals(dict):
+    """All signals for a given Cartesian point"""
+
+    def add_signal(self, s):
+        self[s.bssid] = s
+
+    def get_text(self):
+        """Get text suitable for a tooltip"""
+        return "\n".join("%s %s %d" % (self[b].ssid, self[b].bssid,
+                                       self[b].rssi)
+                         for b in sorted(self.keys()))
+
+    def get_all_rssi(self, bssids):
+        """Get a list of RSSI values for the given BSSIDs.
+           None is returned for any missing BSSID."""
+        def get_rssi(sd, b):
+            if b in sd:
+                return sd[b].rssi
+        return [get_rssi(self, b) for b in bssids]
+
 class Signals(object):
     """All wireless AP signal information, sorted by bssid and position"""
     def __init__(self):
         self._signals = {}
 
-    def add_signal(self, pos, signal):
-        if pos not in self._signals:
-            self._signals[pos] = {}
-        self._signals[pos][signal.bssid] = signal
+    def add_point_signals(self, point, point_signals):
+        self._signals[point] = point_signals
 
     def positions(self):
         return self._signals.items()
@@ -34,19 +52,25 @@ class Signals(object):
                 seen[signal.bssid] = signal.ssid
         return sorted(seen.items(), key=operator.itemgetter(0))
 
-    def get_text(self, pos):
-        """Get text suitable for a tooltip"""
-        sd = self._signals[pos]
-        return "\n".join("%s %s %d" % (sd[b].ssid, sd[b].bssid, sd[b].rssi)
-                         for b in sorted(sd.keys()))
+    def write_csv(self, csvfile):
+        w = csv.writer(csvfile)
+        bssids = self.get_all_bssids()
+        w.writerow(['X', 'Y'] + ["%s:%s" % b for b in bssids])
+        bssids = [b[0] for b in bssids]
+        for pos, ps in self.positions():
+            p = list(pos) + ps.get_all_rssi(bssids)
+            w.writerow(p)
+
 
 class AirportQuery(object):
     def get_signals(self):
         out = subprocess.check_output(['/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport', '-s'], universal_newlines=True)
+        p = PointSignals()
         for ssid, bssid, rssi in re.findall(
                               '(\S+)\s+(..:..:..:..:..:..)\s+([\d-]+)', out):
             s = Signal(ssid=ssid, bssid=bssid, rssi=int(rssi))
-            yield s
+            p.add_signal(s)
+        return p
 
 class FloorPlan(QLabel):
     def __init__(self, parent=None):
@@ -61,10 +85,10 @@ class FloorPlan(QLabel):
     def mousePressEvent(self, event):
         if event.buttons() == Qt.LeftButton:
             pos = event.pos()
-            for signal in self.q.get_signals():
-                self._signals.add_signal((pos.x(), pos.y()), signal)
+            ps = self.q.get_signals()
+            self._signals.add_point_signals((pos.x(), pos.y()), ps)
             label = QLabel('X', self)
-            label.setToolTip(self._signals.get_text((pos.x(), pos.y())))
+            label.setToolTip(ps.get_text())
             label.move(pos)
             label.show()
  
@@ -100,16 +124,8 @@ class App(QMainWindow):
             self.load_image(fileName)
 
     def save_survey(self):
-        def get_rssi(sd, b):
-            if b in sd:
-                return sd[b].rssi
-        bssids = self.plan._signals.get_all_bssids()
         with open('out.csv', 'w', newline='') as csvfile:
-            w = csv.writer(csvfile)
-            w.writerow(['X', 'Y'] + ["%s:%s" % b for b in bssids])
-            for pos, sd in self.plan._signals.positions():
-                p = list(pos) + [get_rssi(sd, b[0]) for b in bssids]
-                w.writerow(p)
+            self.plan._signals.write_csv(csvfile)
         print('file saved as out.csv')
 
     def setup_menu(self):
