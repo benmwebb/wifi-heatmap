@@ -61,6 +61,17 @@ class Signals(object):
             p = list(pos) + ps.get_all_rssi(bssids)
             w.writerow(p)
 
+    def read_csv(self, csvfile):
+        r = csv.DictReader(csvfile)
+        for row in r:
+            pos = (row.pop('X'), row.pop('Y'))
+            p = PointSignals()
+            for k, v in row.items():
+                bssid, ssid = k.split(';', 1)
+                s = Signal(ssid=ssid, bssid=bssid, rssi=v)
+                p.add_signal(s)
+            self.add_point_signals(pos, p)
+
 
 class AirportQuery(object):
     def get_signals(self):
@@ -132,6 +143,10 @@ class App(QMainWindow):
                 self.plan._signals.write_csv(csvfile)
             print('file saved as ' + file_name)
 
+    def load_survey(self):
+        with open('out.csv') as csvfile:
+            self.plan._signals.read_csv(csvfile)
+
     def setup_menu(self):
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
@@ -141,6 +156,10 @@ class App(QMainWindow):
 
         b = QAction('Save Survey...', self)
         b.triggered.connect(self.save_survey)
+        fileMenu.addAction(b)
+
+        b = QAction('Load Survey...', self)
+        b.triggered.connect(self.load_survey)
         fileMenu.addAction(b)
  
 if __name__ == '__main__':
