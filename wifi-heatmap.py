@@ -55,7 +55,7 @@ class Signals(object):
     def write_csv(self, csvfile):
         w = csv.writer(csvfile)
         bssids = self.get_all_bssids()
-        w.writerow(['X', 'Y'] + ["%s:%s" % b for b in bssids])
+        w.writerow(['X', 'Y'] + ["%s;%s" % b for b in bssids])
         bssids = [b[0] for b in bssids]
         for pos, ps in self.positions():
             p = list(pos) + ps.get_all_rssi(bssids)
