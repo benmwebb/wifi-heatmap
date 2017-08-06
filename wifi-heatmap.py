@@ -61,16 +61,18 @@ class Signals(object):
             p = list(pos) + ps.get_all_rssi(bssids)
             w.writerow(p)
 
-    def read_csv(self, csvfile):
+    def read_csv(self, csvfile, add_point_signals):
         r = csv.DictReader(csvfile)
         for row in r:
-            pos = (row.pop('X'), row.pop('Y'))
+            pos = (int(row.pop('X')), int(row.pop('Y')))
             p = PointSignals()
             for k, v in row.items():
                 bssid, ssid = k.split(';', 1)
-                s = Signal(ssid=ssid, bssid=bssid, rssi=v)
-                p.add_signal(s)
+                if v != '':
+                    s = Signal(ssid=ssid, bssid=bssid, rssi=int(v))
+                    p.add_signal(s)
             self.add_point_signals(pos, p)
+            add_point_signals(pos, p)
 
 
 class AirportQuery(object):
@@ -96,12 +98,16 @@ class FloorPlan(QLabel):
     def mousePressEvent(self, event):
         if event.buttons() == Qt.LeftButton:
             pos = event.pos()
+            pos = (pos.x(), pos.y())
             ps = self.q.get_signals()
-            self._signals.add_point_signals((pos.x(), pos.y()), ps)
-            label = QLabel('X', self)
-            label.setToolTip(ps.get_text())
-            label.move(pos)
-            label.show()
+            self._signals.add_point_signals(pos, ps)
+            self.add_point_signals(pos, ps)
+
+    def add_point_signals(self, pos, ps):
+        label = QLabel('X', self)
+        label.setToolTip(ps.get_text())
+        label.move(*pos)
+        label.show()
  
 class App(QMainWindow):
  
@@ -145,7 +151,7 @@ class App(QMainWindow):
 
     def load_survey(self):
         with open('out.csv') as csvfile:
-            self.plan._signals.read_csv(csvfile)
+            self.plan._signals.read_csv(csvfile, self.plan.add_point_signals)
 
     def setup_menu(self):
         mainMenu = self.menuBar()
