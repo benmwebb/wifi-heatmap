@@ -124,9 +124,13 @@ class App(QMainWindow):
             self.load_image(fileName)
 
     def save_survey(self):
-        with open('out.csv', 'w', newline='') as csvfile:
-            self.plan._signals.write_csv(csvfile)
-        print('file saved as out.csv')
+        options = QFileDialog.Options()
+        file_name, _ = QFileDialog.getSaveFileName(self, "Select CSV file",
+                       "","All Files (*);;CSV Files (*.csv)", options=options)
+        if file_name:
+            with open(file_name, 'w', newline='') as csvfile:
+                self.plan._signals.write_csv(csvfile)
+            print('file saved as ' + file_name)
 
     def setup_menu(self):
         mainMenu = self.menuBar()
