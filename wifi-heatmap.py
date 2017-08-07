@@ -10,6 +10,10 @@ import re
 import csv
 import collections
 import operator
+import numpy as np
+from scipy.interpolate import Rbf
+import matplotlib.pyplot as plt
+import pylab
 
 # Information on a single wireless AP
 Signal = collections.namedtuple('Signal', ['ssid', 'bssid', 'rssi'])
@@ -129,6 +133,7 @@ class App(QMainWindow):
     def load_image(self, file_name):
         p = self.plan.pixmap()
         p.load(file_name)
+        self.image_file_name = file_name
         self.plan.setFixedSize(p.width(), p.height())
         self.setMaximumSize(QtCore.QSize(max(self.plan.width(), 400),
                                          max(self.plan.height(), 400)))
@@ -158,20 +163,79 @@ class App(QMainWindow):
                 self.plan._signals.read_csv(csvfile,
                                             self.plan.add_point_signals)
 
+    def show_heatmap(self):
+        # todo: choose bssid, turn on/off contouring
+        signals = []
+        for pos, ps in self.plan._signals.positions():
+            if bssid in ps:
+                signals.append((pos, ps[bssid]))
+        x = np.array([s[0][0] for s in signals])
+        y = np.array([s[0][1] for s in signals])
+        z = np.array([s[1].rssi for s in signals])
+
+        # Make evenly-spaced grid of xy values
+        num_grid_x = num_grid_y = 100
+        grid_x, grid_y = np.meshgrid(np.linspace(0, self.plan.width(),
+                                                 num_grid_x),
+                                     np.linspace(0, self.plan.height(),
+                                                 num_grid_y))
+        grid_x = grid_x.flatten()
+        grid_y = grid_y.flatten()
+
+        # Interpolate on the grid
+        r = Rbf(x, y, z, function='linear')
+        grid_z = r(grid_x, grid_y).reshape((num_grid_y, num_grid_x))
+
+        if contour:
+            self.plot_contour(grid_x, grid_y, grid_z)
+        else:
+            self.plot_heatmap(grid_x, grid_y, grid_z)
+
+    def plot_heatmap(self, x, y, z):
+        num_y, num_x = z.shape
+        plt.figure()
+
+        plt.axis('off')
+        image = pylab.imread(self.image_file_name)
+        plt.imshow(image, interpolation='bicubic', zorder=-100)
+
+        im = plt.imshow(z, extent=(0, self.plan.width(), self.plan.height(), 0),
+                        cmap='RdYlGn', vmin=-85, vmax=-25, alpha=0.7)
+        plt.show()
+
+    def plot_contour(self, x, y, z):
+        num_y, num_x = z.shape
+        plt.figure()
+        plt.axis('off')
+        image = pylab.imread(self.image_file_name)
+        plt.imshow(image, interpolation='bicubic', zorder=-100)
+
+        cs = plt.contourf(x.reshape((num_y, num_x)),
+                          y.reshape((num_y, num_x)), z,
+                          np.append(np.arange(-85, -25, 10), [0]),
+                          cmap='RdYlGn', alpha=0.7)
+        plt.clabel(cs, inline=1, fontsize=10)
+        plt.show()
+
     def setup_menu(self):
         mainMenu = self.menuBar()
-        fileMenu = mainMenu.addMenu('File')
+        menu = mainMenu.addMenu('File')
         b = QAction('Open Floor Plan...', self)
         b.triggered.connect(self.open_floor_plan_dialog)
-        fileMenu.addAction(b)
+        menu.addAction(b)
 
         b = QAction('Save Survey...', self)
         b.triggered.connect(self.save_survey)
-        fileMenu.addAction(b)
+        menu.addAction(b)
 
         b = QAction('Load Survey...', self)
         b.triggered.connect(self.load_survey)
-        fileMenu.addAction(b)
+        menu.addAction(b)
+
+        menu = mainMenu.addMenu('View')
+        b = QAction('Show Heatmap', self)
+        b.triggered.connect(self.show_heatmap)
+        menu.addAction(b)
  
 if __name__ == '__main__':
     app = QApplication(sys.argv)
