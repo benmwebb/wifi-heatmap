@@ -3,7 +3,10 @@
 import sys
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QScrollArea, QMainWindow, QAction, QFileDialog
+from PyQt5.QtWidgets import (QApplication, QWidget, QLabel, QScrollArea,
+                             QMainWindow, QAction, QFileDialog, QDialog,
+                             QGroupBox, QFormLayout, QComboBox,
+                             QDialogButtonBox, QVBoxLayout, QCheckBox)
 from PyQt5.QtGui import QIcon, QPixmap
 import subprocess
 import re
@@ -112,6 +115,36 @@ class FloorPlan(QLabel):
         label.setToolTip(ps.get_text())
         label.move(*pos)
         label.show()
+
+class ChooseHeatmapDialog(QDialog):
+    def __init__(self, signals):
+        super().__init__()
+        self.signals = signals
+        l = QVBoxLayout()
+
+        self.ssid_combo = QComboBox()
+        for bssid, ssid in sorted(self.signals.get_all_bssids(),
+                                  key=operator.itemgetter(1)):
+            self.ssid_combo.addItem("%s (%s)" % (ssid, bssid), bssid)
+
+        ssid_layout = QFormLayout()
+        ssid_layout.addRow(QLabel("SSID:"), self.ssid_combo)
+        l.addLayout(ssid_layout)
+
+        gb = QGroupBox("Plot parameters")
+        gb_layout = QVBoxLayout()
+        self.contour = QCheckBox("Contoured")
+        gb_layout.addWidget(self.contour)
+        gb.setLayout(gb_layout)
+        l.addWidget(gb)
+
+        bb = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        bb.accepted.connect(self.accept)
+        bb.rejected.connect(self.reject)
+        l.addWidget(bb)
+        self.setLayout(l)
+        self.setWindowTitle("Show Heatmap")
+
  
 class App(QMainWindow):
  
@@ -164,7 +197,12 @@ class App(QMainWindow):
                                             self.plan.add_point_signals)
 
     def show_heatmap(self):
-        # todo: choose bssid, turn on/off contouring
+        d = ChooseHeatmapDialog(self.plan._signals)
+        if not d.exec_():
+            return
+        bssid = d.ssid_combo.currentData()
+        contour = d.contour.isChecked()
+
         signals = []
         for pos, ps in self.plan._signals.positions():
             if bssid in ps:
