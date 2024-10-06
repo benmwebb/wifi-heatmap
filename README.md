@@ -25,7 +25,7 @@ but you can certainly copy it into `/usr/bin` or similar.
  - Use "File/Open Floor Plan..." to load a plan of the area you want to survey,
    which can be a hand-drawn image (to scale is best), or (ideally) blueprints
    or architect's plans. Most common image formats will work, although you
-   may want to rescale the image to a manageable size). 
+   may want to rescale the image to a manageable size. 
  - Click on the floor plan corresponding to where you physically are in your
    house. This will sample all of the wifi networks (this will take a few
    seconds) and record them on the plan. Walk around the house and take a number
